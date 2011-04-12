@@ -5,11 +5,11 @@ import Control.Monad(liftM, liftM2, when)
 import Control.Monad.ST(runST)
 import Data.List(inits, tails)
 import BinSearch(expSearch)
-import qualified STFifoQ
+import qualified MFifoQ
 import Test.QuickCheck(quickCheck, (==>), Property)
 
 runningMax :: (Ord a) => Int -> [a] -> [a]
-runningMax n stream = runST (STFifoQ.new n >>= runningMax' stream)
+runningMax n stream = runST (MFifoQ.new' n >>= runningMax' stream)
   where
     runningMax' xs fifo =
         liftM2 (++)
@@ -41,37 +41,37 @@ runningMax n stream = runST (STFifoQ.new n >>= runningMax' stream)
       return (rmax':rest)
 
     appendToQueue fifo x = do
-      l <- STFifoQ.length fifo
+      l <- MFifoQ.length fifo
       insertionPoint <- expSearchFromEnd l
       case insertionPoint of
         Nothing -> do
-            STFifoQ.truncate fifo 0
-            STFifoQ.append fifo (1 :: Int, x)
+            MFifoQ.truncate fifo 0
+            MFifoQ.append fifo (1 :: Int, x)
         Just i  -> do
-          (count, val) <- STFifoQ.readAt fifo i
+          (count, val) <- MFifoQ.readAt fifo i
           if val == x
             then
-              STFifoQ.writeAt fifo i (count+1, val)
+              MFifoQ.writeAt fifo i (count+1, val)
             else do
-              STFifoQ.truncate fifo (i+1)
-              STFifoQ.append fifo (1, x)
+              MFifoQ.truncate fifo (i+1)
+              MFifoQ.append fifo (1, x)
       where
         expSearchFromEnd l =
             (liftM . fmap) (rIndex l) $
-            expSearch (liftM ((x <) . snd) . STFifoQ.readAt fifo . rIndex l)
+            expSearch (liftM ((x <) . snd) . MFifoQ.readAt fifo . rIndex l)
                       0 (l - 1)
         rIndex l = (l - 1 -)
 
     getMax fifo = do
-      (_, rmax) <- STFifoQ.readAt fifo 0
+      (_, rmax) <- MFifoQ.readAt fifo 0
       return rmax
     popMax fifo = do
-      (count, rmax) <- STFifoQ.readAt fifo 0
+      (count, rmax) <- MFifoQ.readAt fifo 0
       if count == 1
         then
-          STFifoQ.popFirst fifo
+          MFifoQ.popFirst fifo
         else
-          STFifoQ.writeAt fifo 0 (count-1, rmax)
+          MFifoQ.writeAt fifo 0 (count-1, rmax)
 
 naiveImpl :: (Ord a) => Int -> [a] -> [a]
 naiveImpl n xs =
